@@ -1,0 +1,85 @@
+---
+title: "Random Forest"
+author: "Mehmet ÇAY"
+date: "2022-09-22"
+output: 
+  html_document: 
+    toc: yes
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Random Forest
+
+For information, please check [here](https://www.javatpoint.com/machine-learning-random-forest-algorithm) .
+
+Basically we create more than one desicion tree (that is why it is called random forest). Let us say 500 tree. And every single one of those tree give us a result. Finally, we decide last value according to most of the result of tree.
+
+```{r}
+library(rpart)
+library(rattle)
+library(e1071)
+library(caret)
+
+diabetes <- read.csv("C:/Users/Mehmet ÇAY/Desktop/R/Desicion_Trees_and_Random_Forest/Desicion Tree/diabetes.csv")
+
+set.seed(165)
+trainIndex <- sample(1:nrow(diabetes) , size = 0.8*nrow(diabetes))
+
+trainSet <- diabetes[trainIndex,]
+testSet <- diabetes[-trainIndex,]
+
+trainSet$Outcome <- as.factor(trainSet$Outcome)
+testSet$Outcome <- as.factor(testSet$Outcome)
+
+library(randomForest)
+
+modelRF <- randomForest(Outcome ~ . , data  = trainSet , ntree = 500 )
+
+modelRF$err.rate
+modelRF$mtry
+
+
+predRF <- predict(modelRF , testSet) #Prediction
+predRF
+
+confusionMatrix(predRF , testSet$Outcome)
+confusionMatrix(predRF , testSet$Outcome , mode = "prec_recall" , positive = "1")
+
+
+modelLookup("rf") #Tunning
+
+trControlRF <- trainControl(method = "repeatedcv" , 
+                            number = 10 , repeats = 3 , search = "random") 
+
+trControlRF2 <- trainControl(method = "cv" , number = 5, search = "grid") 
+
+
+modelRFTune <- train(Outcome ~ . , data = trainSet , 
+                     method = "rf",
+                     tuneLength = 20,
+                     trControl  = trControlRF
+                     ) 
+
+modelRFTuneGrid <- train(Outcome ~ . , data = trainSet , 
+                     method = "rf",
+                     tuneGrid = expand.grid(mtry = 1:8),
+                     trControl  = trControlRF2
+) 
+
+
+modelRFTune
+modelRFTuneGrid
+
+
+predRFTune <- predict(modelRFTune$finalModel , testSet)
+
+confusionMatrix(predRF , testSet$Outcome , mode = "prec_recall" , positive = "1")
+confusionMatrix(predRFTune , testSet$Outcome , mode = "prec_recall" , positive = "1")
+
+
+```
+

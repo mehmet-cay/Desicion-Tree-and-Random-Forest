@@ -1,0 +1,166 @@
+---
+title: "Desicion Tree"
+author: "Mehmet ÇAY"
+date: "2022-09-22"
+output: 
+  html_document: 
+    toc: yes
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Desicion Tree
+
+For theoretical approaching, please check [here](https://www.javatpoint.com/machine-learning-decision-tree-classification-algorithm)
+
+```{r}
+
+library(rpart)
+library(rattle)
+library(mice)
+
+diabetes <- read.csv("C:/Users/Mehmet ÇAY/Desktop/R/Desicion_Trees_and_Random_Forest/Desicion Tree/diabetes.csv")
+
+md.pattern(diabetes)
+
+table(diabetes$Outcome)
+
+set.seed(165)
+trainIndex <- sample(1:nrow(diabetes) , size = 0.8*nrow(diabetes))
+
+trainSet <- diabetes[trainIndex,]
+testSet <- diabetes[-trainIndex,]
+
+nrow(trainSet)
+nrow(testSet)
+table(trainSet$Outcome)
+table(testSet$Outcome)
+
+
+
+```
+Create Model
+```{r}
+
+
+trainSet$Outcome <- as.factor(trainSet$Outcome)
+testSet$Outcome <- as.factor(testSet$Outcome)
+
+modelEntropy <- rpart(Outcome ~ . , data = trainSet , method = "class" , 
+                  parms = list(split = "information"))
+
+modelEntropy2 <- rpart(Outcome ~ . , data = trainSet , method = "class" , 
+                      parms = list(split = "information"))
+
+modelGini <- rpart(Outcome ~ . , data = trainSet , method = "class" , 
+                      parms = list(split = "gini"))
+
+modelEntropy
+modelEntropy2
+modelGini
+
+```
+Visualize Model
+```{r}
+
+fancyRpartPlot(modelEntropy)
+
+modelEntropy
+
+summary(modelEntropy)
+summary(modelGini)
+
+```
+Prediction and Test
+```{r}
+library(caret)
+
+predModelEntropy <- predict(modelEntropy , testSet , type = "class")
+predModelGini <- predict(modelGini , testSet , type = "class")
+
+confusionMatrix(predModelEntropy , testSet$Outcome)
+confusionMatrix(predModelEntropy , testSet$Outcome , mode = "prec_recall")
+confusionMatrix(predModelEntropy , testSet$Outcome , mode = "prec_recall" , positive = "1")
+
+
+confusionMatrix(predModelGini , testSet$Outcome)
+confusionMatrix(predModelGini , testSet$Outcome , mode = "prec_recall")
+confusionMatrix(predModelGini , testSet$Outcome , mode = "prec_recall" , positive = "1")
+
+```
+Model Tunning
+
+```{r}
+
+modelLookup("rpart")
+modelLookup("rpart2")
+library(e1071)
+
+trControl <- trainControl(method="cv" , number = 5 , search = "random")
+trControl2 <- trainControl(method="cv" , number = 5 , search = "grid")
+
+modelCP <- train(Outcome ~ . , data  = trainSet ,
+                 method = "rpart" ,
+                 tuneLength = 20,
+                 trControl = trControl
+                 )
+modelCP
+
+modelMD <- train(Outcome ~ . , data  = trainSet ,
+                 method = "rpart2" ,
+                 tuneLength = 20,
+                 trControl = trControl
+)
+
+modelMDGrid <- train(Outcome ~ . , data  = trainSet ,
+                 method = "rpart2" ,
+                 tuneGrid = expand.grid(maxdepth = 3:20),
+                 trControl = trControl2
+)
+modelMDGrid
+
+
+modelTuneMin <- tune.rpart(Outcome ~ . , data  = trainSet ,
+                           minsplit = 10:15 , minbucket = 5:10 , cp = seq(0.0 , 0.2 , by = 0.01)
+                           )
+modelTuneMin
+
+modelMDGrid$finalModel
+
+
+predMDGrid <- predict(modelMDGrid$finalModel , testSet , type = "class")
+predCP <- predict(modelCP$finalModel , testSet , type = "class")
+predMD <- predict(modelMD$finalModel , testSet , type = "class")
+predMin <- predict(modelTuneMin$best.model , testSet , type = "class")
+
+
+confusionMatrix(predMDGrid  , testSet$Outcome , mode = "prec_recall" , positive = "1")
+confusionMatrix(predCP  , testSet$Outcome , mode = "prec_recall" , positive = "1")
+confusionMatrix(predMD  , testSet$Outcome , mode = "prec_recall" , positive = "1")
+confusionMatrix(predMin  , testSet$Outcome , mode = "prec_recall" , positive = "1")
+
+```
+
+# Regression Tree
+
+Regression tree predicts continous variables, desicion tree predicts ordinal variables.
+
+```{r}
+modelReg <- rpart(Age ~ . , data  = trainSet )
+modelReg
+
+predReg <- predict(modelReg , testSet)
+predReg
+
+library(caret)
+
+R2(predReg , testSet$Age)
+RMSE(predReg , testSet$Age)
+MAE(predReg , testSet$Age)
+
+summary(modelReg)
+```
+
